@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Donation Driver (Admin)</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#fefefe; margin:0; padding:0; }
+  header { background:#f39c12; color:white; text-align:center; padding:40px 20px; }
+  header h1 { margin:0; font-size:2rem; }
+  section { max-width:500px; margin:40px auto; padding:20px; background:#fff3e0; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+  label { display:block; margin-top:15px; font-weight:bold; }
+  input, button { width:100%; padding:10px; margin-top:5px; border-radius:5px; border:1px solid #ccc; }
+  button { background:#f39c12; color:white; font-size:16px; border:none; cursor:pointer; }
+  button:hover { background:#e67e22; }
+  .success { color:green; margin-top:15px; }
+  .error { color:red; margin-top:15px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Add a Donation Driver (Admin Only)</h1>
+</header>
+
+<!-- Admin Login -->
+<section id="loginSection">
+  <p>Login as admin to add drivers:</p>
+  <input type="email" id="email" placeholder="Email" required>
+  <input type="password" id="password" placeholder="Password" required>
+  <button id="loginBtn">Login</button>
+  <p class="error" id="loginError" style="display:none;"></p>
+</section>
+
+<!-- Driver Form -->
+<section id="driverSection" style="display:none;">
+  <form id="driverForm">
+    <label for="orgName">Organization Name</label>
+    <input type="text" id="orgName" required>
+
+    <label for="gcashName">GCash Name</label>
+    <input type="text" id="gcashName" required>
+
+    <label for="gcashNumber">GCash Number</label>
+    <input type="text" id="gcashNumber" required>
+
+    <label for="gcashQRFile">GCash QR Code Image</label>
+    <input type="file" id="gcashQRFile" accept="image/*" required>
+
+    <button type="submit">Save to Database</button>
+    <p class="success" id="successMsg" style="display:none;">Driver saved successfully!</p>
+    <p class="error" id="errorMsg" style="display:none;"></p>
+  </form>
+</section>
+
+<!-- CryptoJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCC3EzW15f74p4xe0o_lEp-reIAAFlgyo0",
+  authDomain: "gcashprivate-927ad.firebaseapp.com",
+  projectId: "gcashprivate-927ad",
+  storageBucket: "gcashprivate-927ad.appspot.com",
+  messagingSenderId: "562603814753",
+  appId: "1:562603814753:web:5b9f71008ba5dde0c4df20",
+  measurementId: "G-VEQX2D6VTE",
+  databaseURL: "https://gcashprivate-927ad-default-rtdb.firebaseio.com"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
+
+// Secret key for encryption
+const secretKey = "MY_SECRET_KEY_123"; // Change to a strong secret
+
+// DOM Elements
+const loginSection = document.getElementById("loginSection");
+const driverSection = document.getElementById("driverSection");
+const loginBtn = document.getElementById("loginBtn");
+const loginError = document.getElementById("loginError");
+const form = document.getElementById("driverForm");
+const successMsg = document.getElementById("successMsg");
+const errorMsg = document.getElementById("errorMsg");
+
+// Admin Login
+loginBtn.addEventListener("click", () => {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  loginError.style.display = "none";
+
+  signInWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      loginSection.style.display = "none";
+      driverSection.style.display = "block";
+    })
+    .catch((error) => {
+      loginError.textContent = error.message;
+      loginError.style.display = "block";
+    });
+});
+
+// Show form only for authenticated users
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    loginSection.style.display = "none";
+    driverSection.style.display = "block";
+  } else {
+    loginSection.style.display = "block";
+    driverSection.style.display = "none";
+  }
+});
+
+// Form submission with encryption and storage
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  successMsg.style.display = "none";
+  errorMsg.style.display = "none";
+
+  const orgName = document.getElementById("orgName").value.trim();
+  const gcashName = document.getElementById("gcashName").value.trim();
+  const gcashNumber = document.getElementById("gcashNumber").value.trim();
+  const fileInput = document.getElementById("gcashQRFile");
+
+  if (fileInput.files.length === 0) {
+    errorMsg.textContent = "Please select a QR code image!";
+    errorMsg.style.display = "block";
+    return;
+  }
+
+  try {
+    const file = fileInput.files[0];
+    const storageRef = sRef(storage, `qr_images/${Date.now()}_${file.name}`);
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+
+    // Encrypt textual data + image URL
+    const driverData = {
+      org1: CryptoJS.AES.encrypt(orgName, secretKey).toString(),
+      gcashname: CryptoJS.AES.encrypt(gcashName, secretKey).toString(),
+      gcashnumber: CryptoJS.AES.encrypt(gcashNumber, secretKey).toString(),
+      gcashqr: CryptoJS.AES.encrypt(downloadURL, secretKey).toString()
+    };
+
+    const driversRef = ref(db, "organization");
+    await push(driversRef, driverData);
+
+    successMsg.style.display = "block";
+    form.reset();
+  } catch (error) {
+    errorMsg.textContent = "Error saving driver: " + error.message;
+    errorMsg.style.display = "block";
+  }
+});
+</script>
+
+</body>
+</html>
