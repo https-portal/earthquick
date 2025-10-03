@@ -161,9 +161,9 @@ onValue(orgRef, (snapshot) => {
     orgCard.classList.add("org-card");
     orgCard.innerHTML = `
       <h3>${orgName}</h3>
-      <p><strong>GCash Name:</strong> ${gcashName}</p>
+      <p><strong>Account Name:</strong> ${gcashName}</p>
       <p>
-        <strong>GCash Number:</strong> <span class="gcash-number">${gcashNumber}</span>
+        <strong>Account Number:</strong> <span class="gcash-number">${gcashNumber}</span>
         <button class="copy-btn">Copy</button>
       </p>
       <img src="data:image/png;base64,${qrBase64}" alt="GCash QR Code">
@@ -175,7 +175,7 @@ onValue(orgRef, (snapshot) => {
     orgCard.querySelector(".copy-btn").addEventListener("click", () => {
       const number = orgCard.querySelector(".gcash-number").textContent;
       navigator.clipboard.writeText(number)
-        .then(() => alert("GCash number copied!"))
+        .then(() => alert("Account number copied!"))
         .catch(err => alert("Failed to copy: " + err));
     });
 
@@ -194,4 +194,5 @@ onValue(orgRef, (snapshot) => {
 
 </body>
 </html>
+
 
