@@ -100,10 +100,11 @@
         const name = document.getElementById("name").value;
         const municipality = document.getElementById("municipality").value;
         const barangay = document.getElementById("barangay").value;
+        const landmark = document.getElementById("landmark").value;
         const status = document.getElementById("status").value;
         const supplies = document.getElementById("supplies").value;
 
-        if (!name || !municipality || !barangay || !status || !supplies) {
+        if (!name || !municipality || !barangay || !landmark || !status || !supplies) {
           alert("Please fill all fields.");
           submitButton.disabled = false;
           return;
@@ -111,7 +112,7 @@
 
         try {
           const date = new Date().toISOString().split('T')[0];
-          await push(ref(db, "requests"), { name, municipality, barangay, status, supplies, date });
+          await push(ref(db, "requests"), { name, municipality, barangay, landmark, status, supplies, date });
           alert("Request submitted successfully!");
           form.reset();
           document.getElementById("barangay").disabled = true;
@@ -193,6 +194,9 @@
             <option value="">-- Select municipality first --</option>
           </select>
 
+          <label for="landmark">Closest Landmark:</label>
+          <input type="text" id="landmark" name="landmark" placeholder="E.g., Bogo City Hall" required>
+
           <label for="status">Status (Safe, Injured, Needs Medical Help):</label>
           <input type="text" id="status" name="status" required>
 
@@ -226,7 +230,7 @@
 
   <footer>
     <p>&copy; 2025 Bogo Relief Initiative | Built with ❤️ for the community</p>
-    <p>Contact: <a href="mailto:help@bogorelief.org">help@bogorelief.org</a></p>
+    <p>Contact: <a href="mailto:logroniolenjun@gmail.com">logroniolenjun@gmail.com</a></p>
   </footer>
 </body>
 </html>
