@@ -66,7 +66,7 @@
     font-weight: bold;
   }
 
-  .copy-btn {
+  .copy-btn, .receipt-btn {
     margin-left: 10px;
     padding: 6px 12px;
     font-size: 14px;
@@ -77,7 +77,7 @@
     border-radius: 6px;
     transition: background 0.2s;
   }
-  .copy-btn:hover {
+  .copy-btn:hover, .receipt-btn:hover {
     background: #e6554d;
   }
 
@@ -145,6 +145,7 @@ onValue(orgRef, (snapshot) => {
     const gcashName = CryptoJS.AES.decrypt(data.gcashname, secretKey).toString(CryptoJS.enc.Utf8);
     const gcashNumber = CryptoJS.AES.decrypt(data.gcashnumber, secretKey).toString(CryptoJS.enc.Utf8);
     const qrBase64 = CryptoJS.AES.decrypt(data.gcashqr, secretKey).toString(CryptoJS.enc.Utf8);
+    const facebookLink = data.facebookLink ? CryptoJS.AES.decrypt(data.facebookLink, secretKey).toString(CryptoJS.enc.Utf8) : "#";
 
     const orgCard = document.createElement("div");
     orgCard.classList.add("org-card");
@@ -156,13 +157,26 @@ onValue(orgRef, (snapshot) => {
         <button class="copy-btn">Copy</button>
       </p>
       <img src="data:image/png;base64,${qrBase64}" alt="GCash QR Code">
+      <p>
+        <button class="receipt-btn">Send Receipt</button>
+      </p>
     `;
 
+    // Copy number functionality
     orgCard.querySelector(".copy-btn").addEventListener("click", () => {
       const number = orgCard.querySelector(".gcash-number").textContent;
       navigator.clipboard.writeText(number)
         .then(() => alert("GCash number copied!"))
         .catch(err => alert("Failed to copy: " + err));
+    });
+
+    // Send receipt functionality - opens their FB link
+    orgCard.querySelector(".receipt-btn").addEventListener("click", () => {
+      if(facebookLink && facebookLink !== "#") {
+        window.open(facebookLink, "_blank");
+      } else {
+        alert("Facebook link not available.");
+      }
     });
 
     orgListEl.appendChild(orgCard);
