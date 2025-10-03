@@ -32,7 +32,20 @@ const barangaySelect = document.getElementById("filterBarangay");
 const requestsRef = ref(db, "requests");
 onValue(requestsRef, snapshot => {
   allRequests = [];
-  snapshot.forEach(child => allRequests.push(child.val()));
+  snapshot.forEach(child => {
+    const val = child.val();
+    allRequests.push({
+      key: child.key,
+      name: val.name || "Unknown",
+      municipality: val.municipality || "N/A",
+      barangay: val.barangay || "N/A",
+      landmark: val.landmark || "",
+      latitude: val.latitude || "",
+      longitude: val.longitude || "",
+      status: val.status || "Pending",
+      supplies: val.supplies || "-"
+    });
+  });
   populateBarangayFilter();
   updateSummaryCards();
   applyFilters();
@@ -55,16 +68,17 @@ function applyFilters() {
   const barangayFilter = barangaySelect.value;
 
   if (barangayFilter) filtered = filtered.filter(r => r.barangay === barangayFilter);
-  if (sortKey) filtered.sort((a, b) => a[sortKey].localeCompare(b[sortKey]));
+  if (sortKey) filtered.sort((a, b) => (a[sortKey] || '').localeCompare(b[sortKey] || ''));
   renderTable(filtered);
 }
 
 function renderTable(data) {
   tbody.innerHTML = "";
   if (data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No requests found</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No requests found</td></tr>`;
     return;
   }
+
   data.forEach(d => {
     const statusColor = d.status === "Completed" ? "green" : d.status === "Pending" ? "orange" : "gray";
     const row = document.createElement("tr");
@@ -75,8 +89,33 @@ function renderTable(data) {
       <td>${d.landmark || '-'}</td>
       <td><span class="status-badge" style="background:${statusColor}">${d.status}</span></td>
       <td>${d.supplies}</td>
+      <td>
+        <button class="show-map-btn" 
+          data-lat="${d.latitude}" 
+          data-lng="${d.longitude}" 
+          data-landmark="${encodeURIComponent(d.landmark)}">
+          Show in Map
+        </button>
+      </td>
     `;
     tbody.appendChild(row);
+  });
+
+  // Add click listeners for "Show in Map"
+  document.querySelectorAll(".show-map-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const lat = btn.dataset.lat;
+      const lng = btn.dataset.lng;
+      const landmark = decodeURIComponent(btn.dataset.landmark);
+
+      if (lat && lng) {
+        window.open(`https://www.google.com/maps?q=${lat},${lng}`, "_blank");
+      } else if (landmark) {
+        window.open(`https://www.google.com/maps/search/${encodeURIComponent(landmark)}`, "_blank");
+      } else {
+        alert("No location available for this request!");
+      }
+    });
   });
 }
 
@@ -102,7 +141,7 @@ document.getElementById("exportExcel").addEventListener("click", () => {
 
   let csvContent = "data:text/csv;charset=utf-8,Name,Municipality,Barangay,Landmark,Status,Supplies\n";
   currentRows.forEach(row => {
-    const cols = Array.from(row.querySelectorAll("td")).map(td => `"${td.textContent.replace(/"/g,'""').replace(/\n/g,' ')}"`);
+    const cols = Array.from(row.querySelectorAll("td")).slice(0,6).map(td => `"${td.textContent.replace(/"/g,'""').replace(/\n/g,' ')}"`);
     csvContent += cols.join(",") + "\n";
   });
 
@@ -138,7 +177,7 @@ button:hover { background:#b02a2a; }
 <body>
 <header>
   <h1>Bogo Relief Dashboard</h1>
-  <p>View requests, filter, sort, and export relief data</p>
+  <p>View requests, filter, sort, show location, and export relief data</p>
 </header>
 
 <section>
@@ -174,6 +213,7 @@ button:hover { background:#b02a2a; }
           <th>Landmark</th>
           <th>Status</th>
           <th>Supplies</th>
+          <th>Map</th>
         </tr>
       </thead>
       <tbody></tbody>
