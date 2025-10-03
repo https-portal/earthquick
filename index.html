@@ -3,86 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Earthquake Victims Request</title>
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#fefefe; color:#333; }
-    header { background:#e74c3c; color:white; text-align:center; padding:60px 20px; }
-    header h1 { font-size:2.5rem; margin-bottom:10px; }
-    section { padding:40px 20px; max-width:1100px; margin:auto; }
-    .card { background:white; padding:25px; border-radius:10px; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-    input, textarea, select, button { width:100%; padding:12px; margin:10px 0; font-size:16px; border-radius:5px; }
-    button { background:#e74c3c; color:white; border:none; cursor:pointer; font-weight:bold; }
-    button:hover { background:#c0392b; }
-    #landmarkMap { height:300px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Bogo Earthquake Relief – Your Help, Their Hope</h1>
-  </header>
-
-  <section>
-    <div class="card">
-      <h2>Request Relief Assistance</h2>
-      <form id="requestForm">
-        <label for="name">Full Name:</label>
-        <input type="text" id="name" name="name" required>
-
-        <label for="municipality">Municipality:</label>
-        <select id="municipality" name="municipality" required>
-          <option value="">-- Loading municipalities --</option>
-        </select>
-
-        <label for="barangay">Barangay:</label>
-        <select id="barangay" name="barangay" required disabled>
-          <option value="">-- Select municipality first --</option>
-        </select>
-
-        <label for="landmark">Closest Landmark:</label>
-        <input type="text" id="landmark" name="landmark" placeholder="E.g., Bogo City Hall" required>
-
-        <label for="landmarkMap">Show on Map (Click to Select Location):</label>
-        <div id="landmarkMap"></div>
-
-        <label for="status">Status (Safe, Injured, Needs Medical Help):</label>
-        <input type="text" id="status" name="status" required>
-
-        <label for="supplies">Requested Supplies:</label>
-        <textarea id="supplies" name="supplies" rows="4" required></textarea>
-
-        <button type="submit">Submit Request</button>
-      </form>
-    </div>
-  </section>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Firebase + Custom JS -->
+  <title> Earthquake Victims Request </title>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBWt99TXD-yWrlDuU6TPEZVMPrDQGV3Y-w",
       authDomain: "emergency-response-927b4.firebaseapp.com",
-      databaseURL: "https://emergency-response-927b4-default-rtdb.firebaseio.com",
       projectId: "emergency-response-927b4",
       storageBucket: "emergency-response-927b4.appspot.com",
       messagingSenderId: "764143976759",
       appId: "1:764143976759:web:340b2fa2834b6406439ab2",
-      measurementId: "G-Z0479KDD64"
+      measurementId: "G-Z0479KDD64",
+      databaseURL: "https://emergency-response-927b4-default-rtdb.firebaseio.com"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Populate municipalities and barangays
     function populateMunicipalities(locations) {
       const municipalitySelect = document.getElementById("municipality");
       const barangaySelect = document.getElementById("barangay");
@@ -95,7 +34,7 @@
         municipalitySelect.appendChild(option);
       });
 
-      barangaySelect.innerHTML = '<option value="">-- Select municipality first --</option>';
+      barangaySelect.innerHTML = '<option value="">-- Select barangay --</option>';
       barangaySelect.disabled = true;
 
       municipalitySelect.addEventListener("change", () => {
@@ -116,7 +55,6 @@
       });
     }
 
-    // Load Cebu municipalities and barangays
     async function loadCebuMap() {
       try {
         const res = await fetch(
@@ -161,21 +99,25 @@
 
       let landmarkMarker = null;
 
-      // Click map to select location
-      landmarkMap.on('click', function(e) {
-        const lat = e.latlng.lat.toFixed(6);
-        const lng = e.latlng.lng.toFixed(6);
-        const description = prompt("Enter landmark description (optional):");
-        if (landmarkMarker) landmarkMap.removeLayer(landmarkMarker);
-        landmarkMarker = L.marker([lat, lng]).addTo(landmarkMap);
-        landmarkMarker.bindPopup(`
-          ${description || "Selected Location"} <br>
-          <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank">Open in Google Maps</a>
-        `).openPopup();
-        document.getElementById("landmark").value = description ? `${description} (${lat}, ${lng})` : `${lat}, ${lng}`;
-      });
+ landmarkMap.on('click', function(e) {
+  const lat = e.latlng.lat.toFixed(6);
+  const lng = e.latlng.lng.toFixed(6);
 
-      // Form submission
+  if (landmarkMarker) landmarkMap.removeLayer(landmarkMarker);
+
+  landmarkMarker = L.marker([lat, lng]).addTo(landmarkMap);
+  landmarkMarker.bindPopup(`
+    Location Selected <br>
+    <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank">Open in Google Maps</a>
+  `).openPopup();
+
+  // Update both landmark text field and hidden lat/lng
+  document.getElementById("landmark").value = `(${lat}, ${lng})`;
+  document.getElementById("latitude").value = lat;
+  document.getElementById("longitude").value = lng;
+});
+
+
       const form = document.getElementById("requestForm");
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -188,16 +130,20 @@
         const landmark = document.getElementById("landmark").value;
         const status = document.getElementById("status").value;
         const supplies = document.getElementById("supplies").value;
+        const latitude = document.getElementById("latitude").value;
+        const longitude = document.getElementById("longitude").value;
 
-        if (!name || !municipality || !barangay || !landmark || !status || !supplies) {
-          alert("Please fill all fields.");
+        if (!name || !municipality || !barangay || !landmark || !status || !supplies || !latitude || !longitude) {
+          alert("Please fill all fields and select a location on the map.");
           submitButton.disabled = false;
           return;
         }
 
         try {
           const date = new Date().toISOString().split('T')[0];
-          await push(ref(db, "requests"), { name, municipality, barangay, landmark, status, supplies, date });
+          await push(ref(db, "requests"), { 
+            name, municipality, barangay, landmark, status, supplies, latitude, longitude, date 
+          });
           alert("Request submitted successfully!");
           form.reset();
           document.getElementById("barangay").disabled = true;
@@ -211,5 +157,126 @@
       });
     });
   </script>
+
+  <!-- Leaflet CSS/JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#fefefe; color:#333; }
+    header { 
+      background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+                  url('https://images.unsplash.com/photo-1586281380394-1dfd2e5bfffc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxMTc3M3wwfDF8c2VhcmNofDJ8fHJlbGlmZSUyMGRyaXZlfGVufDB8fHx8MTY5ODAyODQwMw&ixlib=rb-4.0.3&q=80&w=1080') center/cover no-repeat; 
+      color:white; text-align:center; padding:80px 20px;
+    }
+    header h1 { font-size:3rem; margin-bottom:10px; }
+    header p { font-size:1.2rem; margin-bottom:20px; }
+    header a { background:#f39c12; padding:15px 30px; color:white; border-radius:8px; text-decoration:none; font-weight:bold; }
+    #landmarkMap { height: 300px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; }
+
+    nav { background:#e74c3c; padding:10px; text-align:center; }
+    nav a { color:white; margin:0 15px; text-decoration:none; font-weight:bold; }
+    nav a:hover { text-decoration:underline; }
+
+    section { padding:40px 20px; max-width:1100px; margin:auto; }
+    .card { background:white; padding:25px; border-radius:10px; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+
+    input, textarea, select { width:100%; padding:12px; margin:10px 0; border:1px solid #ccc; border-radius:5px; font-size:16px; }
+    button { background:#e74c3c; color:white; padding:12px 25px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+    button:hover { background:#c0392b; }
+
+    .flex-cards { display:flex; flex-wrap:wrap; gap:20px; }
+    .flex-cards .card { flex:1; min-width:300px; }
+
+    .donate-card { background:#f39c12; color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+    .donate-card button { background:#e67e22; margin-top:15px; }
+
+    #updatesList li { margin-bottom:15px; padding:10px; border-radius:5px; list-style:none; background:#fef3c7; }
+    #updatesList li:nth-child(even) { background:#d1fae5; }
+
+    footer { background:#e74c3c; color:white; text-align:center; padding:20px; margin-top:30px; }
+    footer a { color:white; text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Bogo Earthquake Relief – Your Help, Their Hope</h1>
+    <p>Together, we can rebuild lives and support affected families.</p>
+    <a href="#request">Request or Donate</a>
+  </header>
+
+  <nav>
+    <a href="#request">Request Help</a>
+    <a href="#updates">Updates</a>
+    <a href="summary.html">View Summary</a>
+    <a href="viewmap.html">ViewMap</a>
+  </nav>
+
+  <!-- Request & Donate Section -->
+  <section id="request">
+    <div class="flex-cards">
+      <!-- Request Form -->
+      <div class="card">
+        <h2>Request Relief Assistance</h2>
+        <form id="requestForm">
+          <label for="name">Full Name:</label>
+          <input type="text" id="name" name="name" required>
+
+          <label for="municipality">Municipality:</label>
+          <select id="municipality" name="municipality" required>
+            <option value="">-- Loading municipalities --</option>
+          </select>
+
+          <label for="barangay">Barangay:</label>
+          <select id="barangay" name="barangay" required disabled>
+            <option value="">-- Select municipality first --</option>
+          </select>
+
+          <label for="landmark">Closest Landmark (Description):</label>
+          <input type="text" id="landmark" name="landmark" placeholder="E.g., Bogo City Hall" required>
+
+          <!-- Map -->
+          <label for="landmarkMap">Select Location on Map:</label>
+          <div id="landmarkMap"></div>
+
+          <!-- Hidden lat/long -->
+          <input type="hidden" id="latitude" name="latitude">
+          <input type="hidden" id="longitude" name="longitude">
+
+          <label for="status">Status (Safe, Injured, Needs Medical Help):</label>
+          <input type="text" id="status" name="status" required>
+
+          <label for="supplies">Requested Supplies:</label>
+          <textarea id="supplies" name="supplies" rows="4" required></textarea>
+
+          <button type="submit">Submit Request</button>
+        </form>
+      </div>
+
+      <!-- Donate Card -->
+      <div class="card donate-card">
+        <h2>Donate Supplies / Money</h2>
+        <p>Your contribution helps provide relief to families in need.</p>
+        <button onclick="window.location.href='donate.html'">Donate Now</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Updates Section -->
+  <section id="updates">
+    <div class="card">
+      <h2>Latest Updates</h2>
+      <ul id="updatesList">
+        <li><strong>Oct 3, 2025:</strong> 120 relief packs distributed in Barangay Gairan.</li>
+        <li><strong>Oct 2, 2025:</strong> Volunteers cleared debris near Bogo City Hall.</li>
+        <li><strong>Oct 1, 2025:</strong> Power restoration underway across Bogo.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Bogo Relief Initiative | Built with ❤️ for the community</p>
+    <p>Contact: <a href="mailto:logroniolenjun@gmail.com">Deib</a></p>
+  </footer>
 </body>
 </html>
