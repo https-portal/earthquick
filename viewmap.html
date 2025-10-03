@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bogo Relief — Map of Requests</title>
+
+  <!-- Leaflet CSS (no integrity to avoid blocking) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <!-- MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <style>
+    :root{ --accent:#e74c3c }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    header{ background: linear-gradient(90deg,#e74c3c,#f39c12); color:#fff; padding:18px 20px; display:flex; gap:20px; align-items:center; }
+    header h1{ margin:0; font-size:1.15rem; }
+    .container{ display:flex; height:calc(100vh - 68px); } 
+    #sidebar{ width:360px; min-width:260px; max-width:420px; overflow:auto; background:#fff; border-right:1px solid #eee; padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+    #map{ flex:1; }
+    .controls{ display:flex; gap:8px; margin-bottom:10px; align-items:center; }
+    select,input{ padding:8px; border-radius:6px; border:1px solid #ddd; font-size:14px; }
+    button { background:var(--accent); color:#fff; border:none; padding:8px 10px; border-radius:6px; cursor:pointer; }
+    .req-item{ border-radius:8px; padding:10px; margin-bottom:8px; background:#fafafa; border:1px solid #f0f0f0; }
+    .req-item h4{ margin:0 0 6px 0; font-size:14px; }
+    .req-item p{ margin:0; font-size:13px; color:#444; }
+    .small{ font-size:12px; color:#666; margin-top:6px; }
+    a.maplink{ color:var(--accent); text-decoration:none; font-weight:600; }
+    footer{ padding:10px; text-align:center; font-size:13px; color:#666; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Bogo Relief — Map of Requests (live)</h1>
+    <div style="margin-left:auto; font-size:13px; opacity:.95">Showing pins from Firebase `requests` node</div>
+  </header>
+
+  <div class="container">
+    <aside id="sidebar">
+      <div class="controls">
+        <select id="municipalityFilter">
+          <option value="">All municipalities / cities</option>
+        </select>
+        <input id="searchInput" placeholder="Search name / landmark" />
+        <button id="centerBtn">Center</button>
+      </div>
+
+      <div id="list"></div>
+      <footer>
+        Tip: click markers on the map for request details. If coordinates are missing, the page will try to geocode the landmark automatically.
+      </footer>
+    </aside>
+
+    <div id="map"></div>
+  </div>
+
+  <!-- Leaflet JS (fixed: no integrity attr) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- MarkerCluster -->
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <!-- Firebase v9 modular -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBWt99TXD-yWrlDuU6TPEZVMPrDQGV3Y-w",
+      authDomain: "emergency-response-927b4.firebaseapp.com",
+      projectId: "emergency-response-927b4",
+      storageBucket: "emergency-response-927b4.appspot.com",
+      messagingSenderId: "764143976759",
+      appId: "1:764143976759:web:340b2fa2834b6406439ab2",
+      measurementId: "G-Z0479KDD64",
+      databaseURL: "https://emergency-response-927b4-default-rtdb.firebaseio.com"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const requestsRef = ref(db, "requests");
+
+    const defaultCenter = [10.546580, 124.023725];
+    const map = L.map('map', { preferCanvas: true }).setView(defaultCenter, 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const markerCluster = L.markerClusterGroup();
+    map.addLayer(markerCluster);
+
+    const listEl = document.getElementById('list');
+    const municipalityFilter = document.getElementById('municipalityFilter');
+    const searchInput = document.getElementById('searchInput');
+    const centerBtn = document.getElementById('centerBtn');
+
+    const allRequests = [];
+    const markers = [];
+
+    function parseLatLngFromString(s) {
+      if (!s || typeof s !== 'string') return null;
+      const parts = s.split(',').map(p => p.trim());
+      if (parts.length >= 2) {
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+          return [lat, lng];
+        }
+      }
+      return null;
+    }
+
+    async function geocode(query) {
+      if (!query) return null;
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query);
+      try {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data && data.length > 0) {
+          return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+        }
+      } catch (err) { console.warn('geocode failed', err); }
+      return null;
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+
+    function googleMapsLink(coord) {
+      return `https://www.google.com/maps/search/?api=1&query=${coord[0]},${coord[1]}`;
+    }
+
+    function addMarkerForRequest(reqKey, reqData) {
+      const title = reqData.name || 'Unknown';
+      const municipality = reqData.municipality || '';
+      const barangay = reqData.barangay || '';
+      const landmark = reqData.landmark || '';
+      const status = reqData.status || '';
+      const supplies = reqData.supplies || '';
+      const date = reqData.date || '';
+
+      async function placeMarker(coord) {
+        const marker = L.marker(coord);
+        const popupHtml = `
+          <div style="min-width:200px">
+            <h4 style="margin:0 0 6px 0">${escapeHtml(title)}</h4>
+            <div class="small">${escapeHtml(municipality)} — ${escapeHtml(barangay)}</div>
+            <p style="margin:.5em 0 0 0"><strong>Landmark:</strong> ${escapeHtml(landmark)}</p>
+            <p style="margin:.25em 0 0 0"><strong>Status:</strong> ${escapeHtml(status)}</p>
+            <p style="margin:.25em 0 0 0"><strong>Supplies:</strong> ${escapeHtml(supplies)}</p>
+            <div class="small" style="margin-top:6px">${escapeHtml(date)}</div>
+            <div style="margin-top:8px"><a class="maplink" target="_blank" href="${googleMapsLink(coord)}">Open in Google Maps</a></div>
+          </div>
+        `;
+        marker.bindPopup(popupHtml);
+        markerCluster.addLayer(marker);
+        markers.push({ key: reqKey, marker, municipal: municipality, title, landmark, barangay, supplies, status, date });
+      }
+
+      if (reqData.lat && reqData.lng) {
+        placeMarker([parseFloat(reqData.lat), parseFloat(reqData.lng)]);
+        return;
+      }
+      const parsed = parseLatLngFromString(landmark);
+      if (parsed) {
+        placeMarker(parsed);
+        return;
+      }
+      if (reqData.coords) {
+        const p = parseLatLngFromString(reqData.coords);
+        if (p) { placeMarker(p); return; }
+      }
+
+      const geocodeQueryParts = [landmark, barangay, municipality, 'Bogo', 'Cebu', 'Philippines'].filter(Boolean).join(', ');
+      geocode(geocodeQueryParts).then(coord => {
+        if (coord) {
+          placeMarker(coord);
+        } else {
+          markers.push({ key: reqKey, marker: null, municipal: municipality, title, landmark, barangay, supplies, status, date });
+        }
+      });
+    }
+
+    onValue(requestsRef, snapshot => {
+      allRequests.length = 0;
+      markerCluster.clearLayers();
+      markers.length = 0;
+      listEl.innerHTML = '';
+      municipalityFilter.innerHTML = '<option value="">All municipalities / cities</option>';
+
+      const data = snapshot.val();
+      if (!data) {
+        listEl.innerHTML = '<p>No requests yet.</p>';
+        return;
+      }
+
+      const municipalSet = new Set();
+
+      Object.entries(data).forEach(([key, val]) => {
+        const item = Object.assign({ _key: key }, val);
+        allRequests.push(item);
+        if (item.municipality) municipalSet.add(item.municipality);
+        addMarkerForRequest(key, item);
+      });
+
+      buildList();
+
+      const municipalities = Array.from(municipalSet).sort();
+      municipalities.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        municipalityFilter.appendChild(opt);
+      });
+    });
+
+    function buildList() {
+      listEl.innerHTML = '';
+      const filterMun = municipalityFilter.value.toLowerCase();
+      const query = searchInput.value.trim().toLowerCase();
+
+      const sorted = [...allRequests].sort((a,b) => {
+        if (a.date && b.date) return b.date.localeCompare(a.date);
+        return 0;
+      });
+
+      sorted.forEach(req => {
+        if (filterMun && (req.municipality || '').toLowerCase() !== filterMun) return;
+        const combined = [req.name, req.landmark, req.supplies, req.status, req.barangay].filter(Boolean).join(' ').toLowerCase();
+        if (query && !combined.includes(query)) return;
+
+        const box = document.createElement('div');
+        box.className = 'req-item';
+        box.innerHTML = `
+          <h4>${escapeHtml(req.name || 'Unknown')}</h4>
+          <div class="small">${escapeHtml(req.municipality || '')} — ${escapeHtml(req.barangay || '')}</div>
+          <p><strong>Landmark:</strong> ${escapeHtml(req.landmark || '')}</p>
+          <p class="small"><strong>Status:</strong> ${escapeHtml(req.status || '')} • <strong>Supplies:</strong> ${escapeHtml(req.supplies || '')}</p>
+        `;
+        box.addEventListener('click', async () => {
+          const m = markers.find(x => x.key === req._key);
+          if (m && m.marker) {
+            map.setView(m.marker.getLatLng(), 16);
+            m.marker.openPopup();
+          } else {
+            const q = [req.landmark, req.barangay, req.municipality, 'Bogo', 'Cebu'].filter(Boolean).join(', ');
+            const coord = await geocode(q);
+            if (coord) {
+              const temp = L.marker(coord).addTo(map);
+              temp.bindPopup(`<strong>${escapeHtml(req.name)}</strong><div class="small">${escapeHtml(req.municipality)} — ${escapeHtml(req.barangay)}</div>`).openPopup();
+              map.setView(coord, 16);
+            } else {
+              alert('No coordinates available for this request and geocoding failed.');
+            }
+          }
+        });
+        listEl.appendChild(box);
+      });
+
+      if (!listEl.hasChildNodes()) {
+        listEl.innerHTML = '<p>No requests match the current filter/search.</p>';
+      }
+    }
+
+    municipalityFilter.addEventListener('change', buildList);
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchInput._deb);
+      searchInput._deb = setTimeout(buildList, 200);
+    });
+
+    centerBtn.addEventListener('click', () => map.setView(defaultCenter, 12));
+
+    let adjustAttempts = 0;
+    const adjustInterval = setInterval(() => {
+      if (markerCluster.getLayers().length > 0) {
+        try {
+          const bounds = markerCluster.getBounds();
+          if (bounds && bounds.isValid()) map.fitBounds(bounds.pad(0.15));
+          clearInterval(adjustInterval);
+        } catch (e) { }
+      }
+      if (++adjustAttempts > 30) clearInterval(adjustInterval);
+    }, 500);
+  </script>
+</body>
+</html>
