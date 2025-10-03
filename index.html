@@ -6,145 +6,213 @@
   <title>Earthquake Victims Request</title>
 
   <!-- Firebase + Leaflet (same as before) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBWt99TXD-yWrlDuU6TPEZVMPrDQGV3Y-w",
-      authDomain: "emergency-response-927b4.firebaseapp.com",
-      projectId: "emergency-response-927b4",
-      storageBucket: "emergency-response-927b4.appspot.com",
-      messagingSenderId: "764143976759",
-      appId: "1:764143976759:web:340b2fa2834b6406439ab2",
-      measurementId: "G-Z0479KDD64",
-      databaseURL: "https://emergency-response-927b4-default-rtdb.firebaseio.com"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyBWt99TXD-yWrlDuU6TPEZVMPrDQGV3Y-w",
+  authDomain: "emergency-response-927b4.firebaseapp.com",
+  projectId: "emergency-response-927b4",
+  storageBucket: "emergency-response-927b4.appspot.com",
+  messagingSenderId: "764143976759",
+  appId: "1:764143976759:web:340b2fa2834b6406439ab2",
+  measurementId: "G-Z0479KDD64",
+  databaseURL: "https://emergency-response-927b4-default-rtdb.firebaseio.com"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-    function populateMunicipalities(locations) {
-      const municipalitySelect = document.getElementById("municipality");
-      const barangaySelect = document.getElementById("barangay");
-      municipalitySelect.innerHTML = '<option value="">-- Select municipality --</option>';
-      Object.keys(locations).forEach(m => {
-        const option = document.createElement("option");
-        option.value = m;
-        option.textContent = m;
-        municipalitySelect.appendChild(option);
-      });
-      barangaySelect.innerHTML = '<option value="">-- Select barangay --</option>';
+function populateMunicipalities(locations) {
+  const municipalitySelect = document.getElementById("municipality");
+  const barangaySelect = document.getElementById("barangay");
+  municipalitySelect.innerHTML = '<option value="">-- Select municipality --</option>';
+  Object.keys(locations).forEach(m => {
+    const option = document.createElement("option");
+    option.value = m;
+    option.textContent = m;
+    municipalitySelect.appendChild(option);
+  });
+  barangaySelect.innerHTML = '<option value="">-- Select barangay --</option>';
+  barangaySelect.disabled = true;
+
+  municipalitySelect.addEventListener("change", () => {
+    const selectedMun = municipalitySelect.value;
+    barangaySelect.innerHTML = "";
+    if (!selectedMun) {
       barangaySelect.disabled = true;
-      municipalitySelect.addEventListener("change", () => {
-        const selectedMun = municipalitySelect.value;
-        barangaySelect.innerHTML = "";
-        if (!selectedMun) {
-          barangaySelect.disabled = true;
-          barangaySelect.innerHTML = '<option value="">-- Select municipality first --</option>';
-          return;
-        }
-        (locations[selectedMun] || []).forEach(b => {
-          const option = document.createElement("option");
-          option.value = b;
-          option.textContent = b;
-          barangaySelect.appendChild(option);
-        });
-        barangaySelect.disabled = false;
-      });
+      barangaySelect.innerHTML = '<option value="">-- Select municipality first --</option>';
+      return;
     }
+    (locations[selectedMun] || []).forEach(b => {
+      const option = document.createElement("option");
+      option.value = b;
+      option.textContent = b;
+      barangaySelect.appendChild(option);
+    });
+    barangaySelect.disabled = false;
+  });
+}
 
-    async function loadCebuMap() {
-      try {
-        const res = await fetch(
-          "https://raw.githubusercontent.com/flores-jacob/philippine-regions-provinces-cities-municipalities-barangays/master/philippine_provinces_cities_municipalities_and_barangays_2019v2.json"
-        );
-        const allData = await res.json();
-        let cebuData = null;
-        for (const regionKey in allData) {
-          const region = allData[regionKey];
-          if (!region.province_list) continue;
-          if (region.province_list["CEBU"]) {
-            cebuData = region.province_list["CEBU"];
-            break;
-          }
-        }
-        if (!cebuData) return console.error("Cebu province not found");
-        const locations = {};
-        if (cebuData.municipality_list) {
-          for (const mun in cebuData.municipality_list) {
-            locations[mun] = cebuData.municipality_list[mun].barangay_list || [];
-          }
-        }
-        if (cebuData.city_list) {
-          for (const city in cebuData.city_list) {
-            locations[city] = cebuData.city_list[city].barangay_list || [];
-          }
-        }
-        populateMunicipalities(locations);
-      } catch (err) {
-        console.error("Failed to load Cebu map:", err);
+async function loadCebuMap() {
+  try {
+    const res = await fetch(
+      "https://raw.githubusercontent.com/flores-jacob/philippine-regions-provinces-cities-municipalities-barangays/master/philippine_provinces_cities_municipalities_and_barangays_2019v2.json"
+    );
+    const allData = await res.json();
+    let cebuData = null;
+    for (const regionKey in allData) {
+      const region = allData[regionKey];
+      if (!region.province_list) continue;
+      if (region.province_list["CEBU"]) {
+        cebuData = region.province_list["CEBU"];
+        break;
       }
     }
+    if (!cebuData) return console.error("Cebu province not found");
+    const locations = {};
+    if (cebuData.municipality_list) {
+      for (const mun in cebuData.municipality_list) {
+        locations[mun] = cebuData.municipality_list[mun].barangay_list || [];
+      }
+    }
+    if (cebuData.city_list) {
+      for (const city in cebuData.city_list) {
+        locations[city] = cebuData.city_list[city].barangay_list || [];
+      }
+    }
+    populateMunicipalities(locations);
+    return locations; // Return for reverse geocoding validation
+  } catch (err) {
+    console.error("Failed to load Cebu map:", err);
+  }
+}
 
-    window.addEventListener("DOMContentLoaded", () => {
-      loadCebuMap();
-      const landmarkMap = L.map('landmarkMap').setView([10.3157, 123.8854], 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(landmarkMap);
+function reverseGeocode(lat, lng, locations) {
+  fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+    .then(res => res.json())
+    .then(data => {
+      const address = data.address || {};
+      let municipality = address.city || address.town || address.village || "";
+      let barangay = address.suburb || address.neighbourhood || address.hamlet || "";
 
-      let landmarkMarker = null;
-      landmarkMap.on('click', function(e) {
-        const lat = e.latlng.lat.toFixed(6);
-        const lng = e.latlng.lng.toFixed(6);
+      // Validate municipality/barangay exist in your Cebu JSON
+      if (municipality in locations) {
+        document.getElementById("municipality").value = municipality;
+        const barangaySelect = document.getElementById("barangay");
+        barangaySelect.innerHTML = "";
+        if (locations[municipality].includes(barangay)) {
+          const option = document.createElement("option");
+          option.value = barangay;
+          option.textContent = barangay;
+          barangaySelect.appendChild(option);
+          barangaySelect.disabled = false;
+        } else {
+          barangaySelect.disabled = false;
+          barangaySelect.innerHTML = '<option value="">-- Select barangay --</option>';
+        }
+      }
+    })
+    .catch(err => console.error("Reverse geocoding failed:", err));
+}
+
+window.addEventListener("DOMContentLoaded", async () => {
+  const locations = await loadCebuMap();
+
+  const landmarkMap = L.map('landmarkMap').setView([10.3157, 123.8854], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(landmarkMap);
+
+  let landmarkMarker = null;
+
+  // Try to get user location
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const userLat = pos.coords.latitude.toFixed(6);
+        const userLng = pos.coords.longitude.toFixed(6);
+
+        landmarkMap.setView([userLat, userLng], 15);
+
         if (landmarkMarker) landmarkMap.removeLayer(landmarkMarker);
-        landmarkMarker = L.marker([lat, lng]).addTo(landmarkMap);
-        landmarkMarker.bindPopup(`
-          Location Selected <br>
-          <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank">Open in Google Maps</a>
-        `).openPopup();
-        document.getElementById("landmark").value = `${lat}, ${lng}`;
-        document.getElementById("latitude").value = lat;
-        document.getElementById("longitude").value = lng;
-      });
+        landmarkMarker = L.marker([userLat, userLng]).addTo(landmarkMap);
+        landmarkMarker.bindPopup("Your location").openPopup();
 
-      const form = document.getElementById("requestForm");
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const submitButton = form.querySelector("button");
-        submitButton.disabled = true;
-        const name = document.getElementById("name").value;
-        const municipality = document.getElementById("municipality").value;
-        const barangay = document.getElementById("barangay").value;
-        const landmark = document.getElementById("landmark").value;
-        const status = document.getElementById("status").value;
-        const supplies = document.getElementById("supplies").value;
-        const latitude = document.getElementById("latitude").value;
-        const longitude = document.getElementById("longitude").value;
-        if (!name || !municipality || !barangay || !landmark || !status || !supplies || !latitude || !longitude) {
-          alert("Please fill all fields and select a location on the map.");
-          submitButton.disabled = false;
-          return;
-        }
-        try {
-          const date = new Date().toISOString().split('T')[0];
-          await push(ref(db, "requests"), { 
-            name, municipality, barangay, landmark, status, supplies, latitude, longitude, date 
-          });
-          alert("Request submitted successfully!");
-          form.reset();
-          document.getElementById("barangay").disabled = true;
-          if (landmarkMarker) landmarkMap.removeLayer(landmarkMarker);
-        } catch (err) {
-          alert("Failed to submit request. Please try again.");
-          console.error(err);
-        } finally {
-          submitButton.disabled = false;
-        }
+        document.getElementById("latitude").value = userLat;
+        document.getElementById("longitude").value = userLng;
+        document.getElementById("landmark").value = `${userLat}, ${userLng}`;
+
+        // Auto-fill municipality/barangay
+        reverseGeocode(userLat, userLng, locations);
+      },
+      (err) => console.warn("Geolocation failed:", err),
+      { enableHighAccuracy: true }
+    );
+  }
+
+  // Map click
+  landmarkMap.on('click', function(e) {
+    const lat = e.latlng.lat.toFixed(6);
+    const lng = e.latlng.lng.toFixed(6);
+
+    if (landmarkMarker) landmarkMap.removeLayer(landmarkMarker);
+    landmarkMarker = L.marker([lat, lng]).addTo(landmarkMap);
+    landmarkMarker.bindPopup(`
+      Location Selected <br>
+      <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank">Open in Google Maps</a>
+    `).openPopup();
+
+    document.getElementById("latitude").value = lat;
+    document.getElementById("longitude").value = lng;
+    document.getElementById("landmark").value = `${lat}, ${lng}`;
+
+    // Auto-fill municipality/barangay
+    reverseGeocode(lat, lng, locations);
+  });
+
+  const form = document.getElementById("requestForm");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const submitButton = form.querySelector("button");
+    submitButton.disabled = true;
+
+    const name = document.getElementById("name").value;
+    const municipality = document.getElementById("municipality").value;
+    const barangay = document.getElementById("barangay").value;
+    const landmark = document.getElementById("landmark").value;
+    const status = document.getElementById("status").value;
+    const supplies = document.getElementById("supplies").value;
+    const latitude = document.getElementById("latitude").value;
+    const longitude = document.getElementById("longitude").value;
+
+    if (!name || !municipality || !barangay || !landmark || !status || !supplies || !latitude || !longitude) {
+      alert("Please fill all fields and select a location on the map.");
+      submitButton.disabled = false;
+      return;
+    }
+
+    try {
+      const date = new Date().toISOString().split('T')[0];
+      await push(ref(db, "requests"), { 
+        name, municipality, barangay, landmark, status, supplies, latitude, longitude, date 
       });
-    });
-  </script>
+      alert("Request submitted successfully!");
+      form.reset();
+      document.getElementById("barangay").disabled = true;
+      if (landmarkMarker) landmarkMap.removeLayer(landmarkMarker);
+    } catch (err) {
+      alert("Failed to submit request. Please try again.");
+      console.error(err);
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+});
+</script>
+
+
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -276,6 +344,7 @@
   </footer>
 </body>
 </html>
+
 
 
 
