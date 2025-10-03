@@ -112,7 +112,8 @@
   `).openPopup();
 
   // Update both landmark text field and hidden lat/lng
-  document.getElementById("landmark").value = `(${lat}, ${lng})`;
+document.getElementById("landmark").value = `${lat}, ${lng}`;
+
   document.getElementById("latitude").value = lat;
   document.getElementById("longitude").value = lng;
 });
