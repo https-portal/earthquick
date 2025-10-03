@@ -12,24 +12,70 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
-  <style>
-    :root{ --accent:#e74c3c }
-    body { margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    header{ background: linear-gradient(90deg,#e74c3c,#f39c12); color:#fff; padding:18px 20px; display:flex; gap:20px; align-items:center; }
-    header h1{ margin:0; font-size:1.15rem; }
-    .container{ display:flex; height:calc(100vh - 68px); } 
-    #sidebar{ width:360px; min-width:260px; max-width:420px; overflow:auto; background:#fff; border-right:1px solid #eee; padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
-    #map{ flex:1; }
-    .controls{ display:flex; gap:8px; margin-bottom:10px; align-items:center; }
-    select,input{ padding:8px; border-radius:6px; border:1px solid #ddd; font-size:14px; }
-    button { background:var(--accent); color:#fff; border:none; padding:8px 10px; border-radius:6px; cursor:pointer; }
-    .req-item{ border-radius:8px; padding:10px; margin-bottom:8px; background:#fafafa; border:1px solid #f0f0f0; }
-    .req-item h4{ margin:0 0 6px 0; font-size:14px; }
-    .req-item p{ margin:0; font-size:13px; color:#444; }
-    .small{ font-size:12px; color:#666; margin-top:6px; }
-    a.maplink{ color:var(--accent); text-decoration:none; font-weight:600; }
-    footer{ padding:10px; text-align:center; font-size:13px; color:#666; }
-  </style>
+<style>
+  :root{ --accent:#e74c3c }
+  body { margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+  header{
+    background: linear-gradient(90deg,#e74c3c,#f39c12);
+    color:#fff;
+    padding:14px 16px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  header h1{ margin:0; font-size:1rem; flex:1 }
+  .container{ display:flex; height:calc(100vh - 60px); }
+  #sidebar{
+    width:360px; min-width:260px; max-width:420px;
+    overflow:auto; background:#fff; border-right:1px solid #eee;
+    padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06);
+    transition: transform .3s ease;
+  }
+  #map{ flex:1; }
+  .controls{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  select,input{ padding:10px; border-radius:6px; border:1px solid #ddd; font-size:14px; flex:1; }
+  button {
+    background:var(--accent); color:#fff; border:none;
+    padding:10px 14px; border-radius:6px; cursor:pointer;
+    font-size:14px; flex-shrink:0;
+  }
+  .req-item{
+    border-radius:8px; padding:10px; margin-bottom:8px;
+    background:#fafafa; border:1px solid #f0f0f0;
+  }
+  .req-item h4{ margin:0 0 6px 0; font-size:14px; }
+  .req-item p{ margin:0; font-size:13px; color:#444; }
+  .small{ font-size:12px; color:#666; margin-top:6px; }
+  a.maplink{ color:var(--accent); text-decoration:none; font-weight:600; }
+  footer{ padding:10px; text-align:center; font-size:13px; color:#666; }
+
+  /* ✅ Mobile responsiveness */
+  @media (max-width: 768px) {
+    .container { flex-direction: column; }
+    #sidebar {
+      width: 100%;
+      max-width: none;
+      height: 40%;
+      border-right: none;
+      border-bottom: 1px solid #eee;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    #map { height: 60%; }
+    header h1 { font-size: 0.95rem; }
+    .controls { flex-direction: column; }
+    select,input,button { width: 100%; }
+  }
+
+  @media (max-width: 480px) {
+    header{ padding:10px; }
+    header h1{ font-size:0.9rem; }
+    .req-item h4{ font-size:13px; }
+    .req-item p, .small{ font-size:12px; }
+    button{ font-size:13px; padding:9px 12px; }
+  }
+</style>
+
 </head>
 <body>
   <header>
